@@ -116,7 +116,20 @@ def _set_public_key(user, public_key):
       shutil.chown(ssh_dir, user)
       shutil.chown(auth_keys_file, user)
 
-def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_to, mount_gdrive_from, is_VNC):
+def _runfrp(server):
+  _download(f"http://{server}/frpcolab.tgz", "frpcolab.tgz")
+  shutil.unpack_archive("frpcolab.tgz")
+  frp_proc = subprocess.Popen(
+      ["./frpc", "-c", "./frp_colab.ini"],
+      stdout = subprocess.PIPE,
+      universal_newlines = True
+      )
+  time.sleep(4)
+  if frp_proc.poll() != None:
+    raise RuntimeError("Failed to run frpcolab. Return code:" + str(frp_proc.returncode) + "\n")
+  print("frp run ok")      
+      
+def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_to, mount_gdrive_from, is_VNC, frp_server = ""):
   #apt-get update
   #apt-get upgrade
   my_apt = _MyApt()
@@ -182,6 +195,9 @@ def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_t
 
   ssh_common_options =  "-o UserKnownHostsFile=/dev/null -o VisualHostKey=yes"
 
+  if len(frp_server)>0:
+    _runfrp(frp_server)
+  
   if tunnel == "ngrok":
     pyngrok_config = pyngrok.conf.PyngrokConfig(auth_token = ngrok_token, region = ngrok_region)
     ssh_tunnel = pyngrok.ngrok.connect(addr = 22, proto = "tcp", pyngrok_config = pyngrok_config)
@@ -230,7 +246,7 @@ def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_t
     msg += "✂️"*24 + "\n"
   return msg
 
-def _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_gdrive_to, mount_gdrive_from, is_VNC):
+def _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_gdrive_to, mount_gdrive_from, is_VNC, frp_server = ""):
   if check_gpu_available and not _check_gpu_available():
     return (False, "")
 
@@ -284,7 +300,7 @@ def _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_
       print("in - India (Mumbai)")
       ngrok_region = region = input()
 
-  return (True, _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_to, mount_gdrive_from, is_VNC))
+  return (True, _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_to, mount_gdrive_from, is_VNC, frp_server))
 
 def setupSSHD(ngrok_region = None, check_gpu_available = False, tunnel = None, mount_gdrive_to = None, mount_gdrive_from = None, public_key = None):
   s, msg = _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_gdrive_to, mount_gdrive_from, False)
@@ -415,8 +431,8 @@ subprocess.run(
                     universal_newlines = True)
   return r.stdout
 
-def setupVNC(ngrok_region = None, check_gpu_available = True, tunnel = None, mount_gdrive_to = None, mount_gdrive_from = None, public_key = None):
-  stat, msg = _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_gdrive_to, mount_gdrive_from, True)
+def setupVNC(ngrok_region = None, check_gpu_available = True, tunnel = None, mount_gdrive_to = None, mount_gdrive_from = None, public_key = None, frp_server=""):
+  stat, msg = _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_gdrive_to, mount_gdrive_from, True, frp_server)
   if stat:
     msg += _setupVNC()
 

@@ -129,7 +129,6 @@ def _setupSSHDImpl(public_key, mount_gdrive_to, mount_gdrive_from):
 
   subprocess.run(["unminimize"], input = "y\n", check = True, universal_newlines = True)
 
-  my_apt.installPkg("openssh-server")
   if mount_gdrive_to:
     my_apt.installPkg("bindfs")
 
@@ -170,7 +169,6 @@ def _setupSSHDImpl(public_key, mount_gdrive_to, mount_gdrive_from):
   subprocess.run(["adduser", user_name, "sudo"], check = True)
   subprocess.run(["chpasswd"], input = f"root:{root_password}", universal_newlines = True)
   subprocess.run(["chpasswd"], input = f"{user_name}:{user_password}", universal_newlines = True)
-  subprocess.run(["service", "ssh", "restart"])
   _set_public_key(user_name, public_key)
 
   if mount_gdrive_to:
@@ -182,11 +180,6 @@ def _setupSSHDImpl(public_key, mount_gdrive_to, mount_gdrive_from):
 
   ssh_common_options =  "-o UserKnownHostsFile=/dev/null -o VisualHostKey=yes"
 
-  msg += "---\n"
-  msg += "Command to connect to the ssh server:\n"
-  msg += "✂️"*24 + "\n"
-  msg += f"ssh {ssh_common_options} {user_name}@{hostname}\n"
-  msg += "✂️"*24 + "\n"
   return msg
 
 def _setupSSHDMain(public_key, check_gpu_available, mount_gdrive_to, mount_gdrive_from):
